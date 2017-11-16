@@ -1,0 +1,144 @@
+diff --git a/cfg/conf.d/bbsync.yaml b/cfg/conf.d/bbsync.yaml
+index a7052093..3311d93c 100644
+--- a/cfg/conf.d/bbsync.yaml
++++ b/cfg/conf.d/bbsync.yaml
+@@ -58,3 +58,10 @@ fawkes/bbsync:
+         laser_front_dist: Position3DInterface::front_dist
+       writing:
+         tfTags: TransformInterface::TF tags
++    other-robotino:
++      active: true
++      host: localhost
++      port: !tcp-port 1910
++      check_interval: 1000
++      reading:
++        robot_pose: Position3DInterface::Pose=OtherRobotPose
+diff --git a/cfg/conf.d/meta_plugins.yaml b/cfg/conf.d/meta_plugins.yaml
+index 6f2b882e..3222a924 100644
+--- a/cfg/conf.d/meta_plugins.yaml
++++ b/cfg/conf.d/meta_plugins.yaml
+@@ -18,7 +18,7 @@ fawkes/meta_plugins:
+   #
+   # Gazebo stuff
+   #
+-  gazsim-meta-robotino: gazebo,static-transforms,gazsim-robotino,gazsim-laser,laser-filter,laser-pointclouds,laser-cluster,gazsim-timesource,gazsim-gripper,gazsim-conveyor,laser_front_dist,webview
++  gazsim-meta-robotino: bbsync,gazebo,static-transforms,gazsim-robotino,gazsim-laser,laser-filter,laser-pointclouds,laser-cluster,gazsim-timesource,gazsim-gripper,gazsim-conveyor,laser_front_dist,webview
+   gazsim-meta-robotino-ros: gazsim-meta-robotino,ros,ros-clock,robotino-ros-joints,ros-odometry,ros-tf,ros-laserscan,amcl,navgraph,navgraph-generator,navgraph-generator-mps,laser-lines,ros-cmdvel,ros-navigator,gazsim-vis-localization,skiller
+   gazsim-meta-robotino-no-ros: gazsim-meta-robotino,amcl,navgraph,navgraph-generator,navgraph-generator-mps,laser-lines,colli,gazsim-vis-localization,skiller
+   gazsim-meta-robotino-vision-high-level: gazsim-tag-vision,gazsim-machine-signal
+diff --git a/cfg/gazsim-configurations/default/host_robotino_1.yaml b/cfg/gazsim-configurations/default/host_robotino_1.yaml
+index 9609799d..e7e8ccaf 100644
+--- a/cfg/gazsim-configurations/default/host_robotino_1.yaml
++++ b/cfg/gazsim-configurations/default/host_robotino_1.yaml
+@@ -68,3 +68,6 @@ webtools-bridge:
+   #port where rosbridge is expected to start. Websocket connection will be established to forward the Ros requests to the Rosbridge
+   rosbridge-port: 9090
+   rosbridge-uri: "ws://localhost:9090"
++
++fawkes/bbsync:
++    peers/other-robotino/port: !tcp-port 1922
+diff --git a/cfg/gazsim-configurations/default/host_robotino_2.yaml b/cfg/gazsim-configurations/default/host_robotino_2.yaml
+index a561ac34..174a88d0 100644
+--- a/cfg/gazsim-configurations/default/host_robotino_2.yaml
++++ b/cfg/gazsim-configurations/default/host_robotino_2.yaml
+@@ -68,3 +68,6 @@ webtools-bridge:
+   #port where rosbridge is expected to start. Websocket connection will be established to forward the Ros requests to the Rosbridge
+   rosbridge-port: 8080
+   rosbridge-uri: "ws://localhost:8080"
++
++fawkes/bbsync:
++    peers/other-robotino/port: !tcp-port 1921
+diff --git a/cfg/gazsim-configurations/default/robotino1.yaml b/cfg/gazsim-configurations/default/robotino1.yaml
+index 6735dc7e..b5970c9e 100644
+--- a/cfg/gazsim-configurations/default/robotino1.yaml
++++ b/cfg/gazsim-configurations/default/robotino1.yaml
+@@ -16,4 +16,3 @@ fawkes:
+   # Main app relevant settings
+   mainapp:
+     loggers: console;file/debug:debug1_$time.log
+-
+diff --git a/cfg/gazsim-configurations/default/robotino2.yaml b/cfg/gazsim-configurations/default/robotino2.yaml
+index ca1cdb8e..41f6890a 100644
+--- a/cfg/gazsim-configurations/default/robotino2.yaml
++++ b/cfg/gazsim-configurations/default/robotino2.yaml
+@@ -16,4 +16,3 @@ fawkes:
+   # Main app relevant settings
+   mainapp:
+     loggers: console;file/debug:debug2_$time.log
+-
+diff --git a/cfg/gazsim-configurations/gazsim-config-override.yaml b/cfg/gazsim-configurations/gazsim-config-override.yaml
+index 617ce56a..f7efe3ed 100644
+--- a/cfg/gazsim-configurations/gazsim-config-override.yaml
++++ b/cfg/gazsim-configurations/gazsim-config-override.yaml
+@@ -124,3 +124,7 @@ plugins/robot-memory:
+     replicated:
+       replica-set-members:
+         - localhost:27021
++
++fawkes/bbsync:
++  peers:
++    robotino-base/active: false
+diff --git a/etc/scripts/hackathon.bash b/etc/scripts/hackathon.bash
+index c98e749b..5c62fb75 100755
+--- a/etc/scripts/hackathon.bash
++++ b/etc/scripts/hackathon.bash
+@@ -128,6 +128,7 @@ if [  $COMMAND  == kill ]; then
+     killall roscore
+     killall llsf-refbox
+     killall llsf-refbox-shell
++    killall roslaunch
+     exit 0
+ fi
+ 
+@@ -175,6 +176,12 @@ if [  $COMMAND  == start ]; then
+     for ((ROBO=$FIRST_ROBOTINO_NUMBER ; ROBO<$(($FIRST_ROBOTINO_NUMBER+$NUM_ROBOTINOS)) ;ROBO++))
+     do
+ 	OPEN_COMMAND="$OPEN_COMMAND --tab -t Fawkes_Robotino_$ROBO -e 'bash -c \"export TAB_START_TIME=$(date +%s); $script_path/wait-at-first-start.bash 10; $startup_script_location -x fawkes -p 1131$ROBO -i robotino$ROBO $KEEP $CONF $ROS $META_PLUGIN $DETAILED -f $FAWKES_BIN\"'"
++	    if $START_MOVE_BASE
++	    then
++		#start move_base for path planning
++		OPEN_COMMAND="$OPEN_COMMAND --tab -t move_base -e 'bash -c \"ROS_MASTER_URI=http://localhost:1131$ROBO && roslaunch --wait robotino_move_base robotino_move_base_simu.launch\"'"
++	    fi
++
+     done
+ 
+     if $START_GAZEBO
+@@ -183,11 +190,6 @@ if [  $COMMAND  == start ]; then
+ 	OPEN_COMMAND="$OPEN_COMMAND --tab -t Fawkes_Comm -e 'bash -c \"export TAB_START_TIME=$(date +%s); $script_path/wait-at-first-start.bash 5; $startup_script_location -x comm -p 11311 $KEEP $SHUTDOWN\"'"
+     fi
+ 
+-    if $START_MOVE_BASE
+-    then
+-	#start move_base for path planning
+-	OPEN_COMMAND="$OPEN_COMMAND --tab -t move_base -e 'bash -c \"roslaunch --wait robotino_move_base robotino_move_base_simu.launch\"'"
+-    fi
+ 
+     # open windows
+     #echo $OPEN_COMMAND
+@@ -197,6 +199,7 @@ if [  $COMMAND  == start ]; then
+     sleep 15s
+     echo "publish initial poses"
+     $initial_pose_script_location -p 1921 -x 0.7 -y 2.461 -o 0 0 0.7 0.7
++    $initial_pose_script_location -p 1922 -x 5.5 -y 2.4 -o 0 0 0.7 0.7
+ 
+     else
+     usage
+diff --git a/src/clips-specs/hackathon/state-estimation-init.clp b/src/clips-specs/hackathon/state-estimation-init.clp
+index 893ec521..a4af6cf4 100644
+--- a/src/clips-specs/hackathon/state-estimation-init.clp
++++ b/src/clips-specs/hackathon/state-estimation-init.clp
+@@ -24,3 +24,14 @@
+   =>
+   (blackboard-open-reading "ShelfConfigurationInterface" "shelf")
+ )
++
++(defrule state-estimation-open-other-robot-pose-interface
++  "Open the synced blackboard interface of the other robot."
++  (executive-init)
++  (ff-feature-loaded blackboard)
++  (not
++    (blackboard-interface (type "Position3DInterface") (id "OtherRobotPose"))
++  )
++  =>
++  (blackboard-open-reading "Position3DInterface" "OtherRobotPose")
++)
