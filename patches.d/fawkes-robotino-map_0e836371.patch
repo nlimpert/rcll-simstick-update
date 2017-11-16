@@ -21,14 +21,3 @@ index 3318f69c..617ce56a 100644
  
  plugins/laser-filter:
    robot-front/active: false
-diff --git a/etc/scripts/gazsim-publish-initial-pose.bash b/etc/scripts/gazsim-publish-initial-pose.bash
-index be3b81e8..efbc7c91 100755
---- a/etc/scripts/gazsim-publish-initial-pose.bash
-+++ b/etc/scripts/gazsim-publish-initial-pose.bash
-@@ -110,5 +110,5 @@ then
-      exit 1
- fi
- 
--$FAWKES_DIR/bin/ffset_pose $X $Y 0.0 $O0 $O1 $O2 $O3
-+$FAWKES_DIR/bin/ffset_pose -r localhost:${PORT} $X $Y 0.0 $O0 $O1 $O2 $O3
- 
