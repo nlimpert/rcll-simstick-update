@@ -27,6 +27,6 @@ sudo -n true
 
 # if not, add NOPASSWD option to sudoers file
 if [ $? -eq 1 ]
-	echo '$USER         ALL=(ALL)       NOPASSWD: ALL' | sudo EDITOR='tee -a' visudo
+	then echo $USER'         ALL=(ALL)       NOPASSWD: ALL' | sudo EDITOR='tee -a' visudo
 fi
 
