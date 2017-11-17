@@ -364,3 +364,11 @@ patch_check_needs_clean_all()
 
 		return 1
 }
+
+copy_blob_if_needed()
+{
+		echo "Copy $(basename $1) if needed"
+		if [[ $(diff $1 $2) ]]; then
+				cp $1 $2
+		fi
+}
