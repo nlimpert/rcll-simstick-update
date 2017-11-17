@@ -1,0 +1,12 @@
+%YAML 1.2
+%TAG ! tag:fawkesrobotics.org,cfg/
+---
+doc-url: !url https://trac.fawkesrobotics.org/wiki/Carologistics/skills
+---
+skills:
+  # The distance the robot has to drive after being aligned
+  # in front of the mps
+  approach_distance_conveyor:
+    x: 0.31
+  approach_distance_laser:
+    x: 0.18
