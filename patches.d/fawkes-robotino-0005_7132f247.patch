@@ -1,0 +1,37 @@
+diff --git a/cfg/conf.d/clips-executive.yaml b/cfg/conf.d/clips-executive.yaml
+index 94f142cd..75926647 100644
+--- a/cfg/conf.d/clips-executive.yaml
++++ b/cfg/conf.d/clips-executive.yaml
+@@ -80,6 +80,11 @@ clips-executive:
+       state-estimation: hackathon/state-estimation-init.clp
+ 
+       action-mapping:
++        goto: ppgoto{place=?(to)s}
++        conveyor-align: conveyor_align()
++        pick: shelf_pick{slot=?(slot)s}
++        put: shelf_put{slot=?(slot)s}
++        mps-align: mps_align{x=0.5}
+         say: say{text=?(text)s, wait=true}
+         say-hello: say{text="Hello ?(name)y", wait=true}
+         say-goodbye: say{text="Good bye", wait=true}
+diff --git a/src/lua/skills/robotino/mps_align.lua b/src/lua/skills/robotino/mps_align.lua
+index c924e61b..a318d682 100644
+--- a/src/lua/skills/robotino/mps_align.lua
++++ b/src/lua/skills/robotino/mps_align.lua
+@@ -148,7 +148,7 @@ fsm:define_states{ export_to=_M, closure={
+ }
+ 
+ fsm:add_transitions{
+-   {"INIT",          "FAILED",          precond="not vars.x", desc="x argument missing"},
++   --{"INIT",          "FAILED",          precond="not vars.x", desc="x argument missing"},
+    {"INIT",          "CHECK_TAG",       cond=true},
+ 
+    {"CHECK_TAG",     "MATCH_LINE",      cond="tag_visible(MIN_VIS_HIST_TAG)", desc="found tag"},
+@@ -173,6 +173,7 @@ fsm:add_transitions{
+ }
+ 
+ function INIT:init()
++   self.fsm.vars.x   = self.fsm.vars.x   or 0.5
+    self.fsm.vars.y   = self.fsm.vars.y   or 0
+    self.fsm.vars.ori = self.fsm.vars.ori or 0
+ 
