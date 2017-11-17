@@ -1,0 +1,672 @@
+diff --git a/cfg/conf.d/bbsync.yaml b/cfg/conf.d/bbsync.yaml
+index a7052093..3311d93c 100644
+--- a/cfg/conf.d/bbsync.yaml
++++ b/cfg/conf.d/bbsync.yaml
+@@ -58,3 +58,10 @@ fawkes/bbsync:
+         laser_front_dist: Position3DInterface::front_dist
+       writing:
+         tfTags: TransformInterface::TF tags
++    other-robotino:
++      active: true
++      host: localhost
++      port: !tcp-port 1910
++      check_interval: 1000
++      reading:
++        robot_pose: Position3DInterface::Pose=OtherRobotPose
+diff --git a/cfg/conf.d/clips-executive.yaml b/cfg/conf.d/clips-executive.yaml
+index 508cfd55..94f142cd 100644
+--- a/cfg/conf.d/clips-executive.yaml
++++ b/cfg/conf.d/clips-executive.yaml
+@@ -10,7 +10,7 @@ clips-executive:
+   # If CLIPS debugging is enabled, certain rules and facts can be excluded
+   # from watching, e.g. if they are showing up at too high frequencies or
+   # are not of interest.
+-  unwatch-facts: ["time"]
++  unwatch-facts: ["time", "Position3DInterface"]
+   unwatch-rules: ["time-retract", "blackboard-read"]
+ 
+   # Currently not working in clips-executive!
+@@ -54,8 +54,23 @@ clips-executive:
+   spec: hackathon
+ 
+   specs:
++    drive-around:
++      domain: drive-around/domain.clp
++      goal-reasoner: drive-around/goal-reasoner.clp
++      goal-expander: drive-around/fixed-sequence.clp
++      action-selection: drive-around/action-selection.clp
++      #macro-expansion: drive-around/action-selection.clp
++      action-execution: plan-exec.clp
++      execution-monitoring: drive-around/execution-monitoring.clp
++      state-estimation: drive-around/state-estimation-init.clp
++
++      action-mapping:
++        goto: ppgoto{place=?(to)s}
++
++      blackboard-preload: ["Position3DInterface"]
++
+     hackathon:
+-      domain: hackathon/test-domain.clp
++      domain: hackathon/domain.clp
+       goal-reasoner: hackathon/goal-reasoner.clp
+       goal-expander: hackathon/fixed-sequence.clp
+       action-selection: hackathon/action-selection.clp
+diff --git a/cfg/conf.d/meta_plugins.yaml b/cfg/conf.d/meta_plugins.yaml
+index 6f2b882e..75e16658 100644
+--- a/cfg/conf.d/meta_plugins.yaml
++++ b/cfg/conf.d/meta_plugins.yaml
+@@ -18,7 +18,7 @@ fawkes/meta_plugins:
+   #
+   # Gazebo stuff
+   #
+-  gazsim-meta-robotino: gazebo,static-transforms,gazsim-robotino,gazsim-laser,laser-filter,laser-pointclouds,laser-cluster,gazsim-timesource,gazsim-gripper,gazsim-conveyor,laser_front_dist,webview
++  gazsim-meta-robotino: gazebo,static-transforms,gazsim-robotino,gazsim-laser,laser-filter,laser-pointclouds,laser-cluster,gazsim-timesource,gazsim-gripper,gazsim-conveyor,laser_front_dist,webview,flite
+   gazsim-meta-robotino-ros: gazsim-meta-robotino,ros,ros-clock,robotino-ros-joints,ros-odometry,ros-tf,ros-laserscan,amcl,navgraph,navgraph-generator,navgraph-generator-mps,laser-lines,ros-cmdvel,ros-navigator,gazsim-vis-localization,skiller
+   gazsim-meta-robotino-no-ros: gazsim-meta-robotino,amcl,navgraph,navgraph-generator,navgraph-generator-mps,laser-lines,colli,gazsim-vis-localization,skiller
+   gazsim-meta-robotino-vision-high-level: gazsim-tag-vision,gazsim-machine-signal
+diff --git a/cfg/conf.d/navgraph.yaml b/cfg/conf.d/navgraph.yaml
+index 555412fe..32dd9f39 100644
+--- a/cfg/conf.d/navgraph.yaml
++++ b/cfg/conf.d/navgraph.yaml
+@@ -15,7 +15,7 @@ navgraph:
+   navigator_interface_id: Navigator
+ 
+   # Graph file to use for path planning
+-  graph_file: navgraph-basis.yaml
++  graph_file: navgraph-hackathon.yaml
+  
+   # Interval in which the resend the goto command; sec
+   resend_interval: 1
+diff --git a/cfg/gazsim-configurations/default/host_robotino_1.yaml b/cfg/gazsim-configurations/default/host_robotino_1.yaml
+index 9609799d..e7e8ccaf 100644
+--- a/cfg/gazsim-configurations/default/host_robotino_1.yaml
++++ b/cfg/gazsim-configurations/default/host_robotino_1.yaml
+@@ -68,3 +68,6 @@ webtools-bridge:
+   #port where rosbridge is expected to start. Websocket connection will be established to forward the Ros requests to the Rosbridge
+   rosbridge-port: 9090
+   rosbridge-uri: "ws://localhost:9090"
++
++fawkes/bbsync:
++    peers/other-robotino/port: !tcp-port 1922
+diff --git a/cfg/gazsim-configurations/default/host_robotino_2.yaml b/cfg/gazsim-configurations/default/host_robotino_2.yaml
+index a561ac34..174a88d0 100644
+--- a/cfg/gazsim-configurations/default/host_robotino_2.yaml
++++ b/cfg/gazsim-configurations/default/host_robotino_2.yaml
+@@ -68,3 +68,6 @@ webtools-bridge:
+   #port where rosbridge is expected to start. Websocket connection will be established to forward the Ros requests to the Rosbridge
+   rosbridge-port: 8080
+   rosbridge-uri: "ws://localhost:8080"
++
++fawkes/bbsync:
++    peers/other-robotino/port: !tcp-port 1921
+diff --git a/cfg/gazsim-configurations/default/robotino1.yaml b/cfg/gazsim-configurations/default/robotino1.yaml
+index 6735dc7e..b5970c9e 100644
+--- a/cfg/gazsim-configurations/default/robotino1.yaml
++++ b/cfg/gazsim-configurations/default/robotino1.yaml
+@@ -16,4 +16,3 @@ fawkes:
+   # Main app relevant settings
+   mainapp:
+     loggers: console;file/debug:debug1_$time.log
+-
+diff --git a/cfg/gazsim-configurations/default/robotino2.yaml b/cfg/gazsim-configurations/default/robotino2.yaml
+index ca1cdb8e..41f6890a 100644
+--- a/cfg/gazsim-configurations/default/robotino2.yaml
++++ b/cfg/gazsim-configurations/default/robotino2.yaml
+@@ -16,4 +16,3 @@ fawkes:
+   # Main app relevant settings
+   mainapp:
+     loggers: console;file/debug:debug2_$time.log
+-
+diff --git a/cfg/gazsim-configurations/gazsim-config-override.yaml b/cfg/gazsim-configurations/gazsim-config-override.yaml
+index 617ce56a..f7efe3ed 100644
+--- a/cfg/gazsim-configurations/gazsim-config-override.yaml
++++ b/cfg/gazsim-configurations/gazsim-config-override.yaml
+@@ -124,3 +124,7 @@ plugins/robot-memory:
+     replicated:
+       replica-set-members:
+         - localhost:27021
++
++fawkes/bbsync:
++  peers:
++    robotino-base/active: false
+diff --git a/cfg/maps/hackathon-sim.png b/cfg/maps/hackathon-sim.png
+index fb82adc7..e0e6e8c9 100644
+Binary files a/cfg/maps/hackathon-sim.png and b/cfg/maps/hackathon-sim.png differ
+diff --git a/cfg/navgraph-hackathon.yaml b/cfg/navgraph-hackathon.yaml
+new file mode 100644
+index 00000000..c2f32aba
+--- /dev/null
++++ b/cfg/navgraph-hackathon.yaml
+@@ -0,0 +1,91 @@
++%YAML 1.2
++%TAG ! tag:fawkesrobotics.org,navgraph/
++---
++graph-name: LLSF
++root: SW
++
++default-properties:
++    # Max. distance between actual and target positions to deem the target
++    # reached. This value is for intermediate nodes on a path; m
++    # The value can be overwritten per node in the graph file.
++    - travel_tolerance: 1.5
++
++    # Max. distance between actual and target positions to deem the target
++    # reached. This value is for the last node on a path; m
++    # The value can be overwritten per node in the graph file.
++    - target_tolerance: 0.7
++
++    # Max. distance between actual and target orientation to deem the target
++    # reached. This value is for the last node on a path; rad
++    - orientation_tolerance: 0.6
++
++    # When following a plan the robot will check all upcoming nodes if they
++    # are close to the robot within this tolerance. If so, they take a shortcut
++    # and will go to the node in the plan after the shortcut node.
++    # This is potentially dangerous depending on the graph and navigator as it
++    # might violate the typical graph constraint of only having direct-line-of-tavel
++    # connections. The value can be overidden with a node property of the same name; m
++    - shortcut_tolerance: 1.2
++
++    # Distance from base_link to the MPS to align
++    - align_distance: 0.45
++
++    # Signal position on the table. Z is the table height above ground.
++    - signal_hint_x: 0.035
++    - signal_hint_y: -0.1
++    - signal_hint_z: 0.78
++
++    # Offset for aligning in front of the conveyor using the laser line
++    - input_offset_y: 0.025
++    - output_offset_y: -0.025
++
++
++nodes:
++  - !unconnected
++    name: source-red
++    pos: [2.5, 4.5]
++    properties:
++      - tag_output: 33
++  - name: source-red-output
++    pos: [2.5, 4.0]
++    properties:
++      - orientation: 1.57
++  - !unconnected
++    name: source-black
++    pos: [3.5, 4.5]
++    properties:
++      - tag_output: 34
++  - name: source-black-output
++    pos: [3.5, 4.0]
++    properties:
++      - orientation: 1.57
++  - !unconnected
++    name: target-magenta
++    pos: [1.5, 0.5]
++    properties:
++      - tag_input: 17
++  - name: target-magenta-input
++    pos: [1.5, 1.0]
++    properties:
++      - orientation: -1.57
++  - !unconnected
++    name: target-cyan
++    pos: [4.5, 0.5]
++    properties:
++      - tag_input: 18
++  - name: target-cyan-input
++    pos: [4.5, 1.0]
++    properties:
++      - orientation: -1.57
++  - name: center-field
++    pos: [3.0, 3.0]
++
++# Possible directional tags:
++# !bidir (bidirectional, default), !dir (directed)
++connections:
++# common
++  - [center-field, source-red-output]
++  - [center-field, source-black-output]
++  - [center-field, target-magenta-input]
++  - [center-field, target-cyan-input]
++
+diff --git a/etc/scripts/hackathon.bash b/etc/scripts/hackathon.bash
+index c98e749b..638075bf 100755
+--- a/etc/scripts/hackathon.bash
++++ b/etc/scripts/hackathon.bash
+@@ -128,6 +128,7 @@ if [  $COMMAND  == kill ]; then
+     killall roscore
+     killall llsf-refbox
+     killall llsf-refbox-shell
++    killall roslaunch
+     exit 0
+ fi
+ 
+@@ -171,10 +172,19 @@ if [  $COMMAND  == start ]; then
+     	done
+     fi
+ 
++    if [ $NUM_ROBOTINOS -gt 1 ] ; then
++      META_PLUGIN="${META_PLUGIN:+${META_PLUGIN},}bbsync"
++    fi
+     #start fawkes for robotinos
+     for ((ROBO=$FIRST_ROBOTINO_NUMBER ; ROBO<$(($FIRST_ROBOTINO_NUMBER+$NUM_ROBOTINOS)) ;ROBO++))
+     do
+ 	OPEN_COMMAND="$OPEN_COMMAND --tab -t Fawkes_Robotino_$ROBO -e 'bash -c \"export TAB_START_TIME=$(date +%s); $script_path/wait-at-first-start.bash 10; $startup_script_location -x fawkes -p 1131$ROBO -i robotino$ROBO $KEEP $CONF $ROS $META_PLUGIN $DETAILED -f $FAWKES_BIN\"'"
++	    if $START_MOVE_BASE
++	    then
++		#start move_base for path planning
++		OPEN_COMMAND="$OPEN_COMMAND --tab -t move_base -e 'bash -c \"ROS_MASTER_URI=http://localhost:1131$ROBO && roslaunch --wait robotino_move_base robotino_move_base_simu.launch\"'"
++	    fi
++
+     done
+ 
+     if $START_GAZEBO
+@@ -183,11 +193,6 @@ if [  $COMMAND  == start ]; then
+ 	OPEN_COMMAND="$OPEN_COMMAND --tab -t Fawkes_Comm -e 'bash -c \"export TAB_START_TIME=$(date +%s); $script_path/wait-at-first-start.bash 5; $startup_script_location -x comm -p 11311 $KEEP $SHUTDOWN\"'"
+     fi
+ 
+-    if $START_MOVE_BASE
+-    then
+-	#start move_base for path planning
+-	OPEN_COMMAND="$OPEN_COMMAND --tab -t move_base -e 'bash -c \"roslaunch --wait robotino_move_base robotino_move_base_simu.launch\"'"
+-    fi
+ 
+     # open windows
+     #echo $OPEN_COMMAND
+@@ -197,6 +202,9 @@ if [  $COMMAND  == start ]; then
+     sleep 15s
+     echo "publish initial poses"
+     $initial_pose_script_location -p 1921 -x 0.7 -y 2.461 -o 0 0 0.7 0.7
++    if [ $NUM_ROBOTINOS -gt 1 ] ; then
++      $initial_pose_script_location -p 1922 -x 5.5 -y 2.4 -o 0 0 0.7 0.7
++    fi
+ 
+     else
+     usage
+diff --git a/src/clips-specs/drive-around/action-selection.clp b/src/clips-specs/drive-around/action-selection.clp
+new file mode 100644
+index 00000000..6802a889
+--- /dev/null
++++ b/src/clips-specs/drive-around/action-selection.clp
+@@ -0,0 +1,35 @@
++(defrule action-selection-select
++  (Position3DInterface (id "Pose") (translation $?robot-trans))
++	?pa <- (plan-action (plan-id ?plan-id) (id ?id) (status FORMULATED)
++											(action-name goto) (param-values $?params))
++  (navgraph-node (name ?goal-node&:(eq ?goal-node (nth$ 1 ?params))) (pos $?goal-pos))
++	(plan (id ?plan-id) (goal-id ?goal-id))
++	(goal (id ?goal-id) (mode DISPATCHED))
++	(not (plan-action (status PENDING|WAITING|RUNNING|FAILED)))
++	(not (and
++    (plan-action (plan-id ?plan-id) (id ?other-id&~?id) (status FORMULATED)
++      (action-name goto) (param-values $?otherp))
++    (navgraph-node (name ?othern&:(eq ?othern (nth$ 1 ?otherp)))
++      (pos $?other-pos&:
++        (navgraph-closer (subseq$ ?robot-trans 1 2) ?other-pos ?goal-pos)
++    ))
++  ))
++	=>
++	(modify ?pa (status PENDING))
++)
++
++(defrule action-selection-done
++	(plan (id ?plan-id) (goal-id ?goal-id))
++	?g <- (goal (id ?goal-id) (mode DISPATCHED))
++	(not (plan-action (plan-id ?plan-id) (status ~FINAL)))
++	=>
++	(modify ?g (mode COMPLETED))
++)
++
++(defrule action-selection-failed
++	(plan (id ?plan-id) (goal-id ?goal-id))
++	?g <- (goal (id ?goal-id) (mode DISPATCHED))
++	(plan-action (status FAILED))
++	=>
++	(modify ?g (mode FAILED))
++)
+diff --git a/src/clips-specs/drive-around/domain.clp b/src/clips-specs/drive-around/domain.clp
+new file mode 100644
+index 00000000..bcd0fb7f
+--- /dev/null
++++ b/src/clips-specs/drive-around/domain.clp
+@@ -0,0 +1,20 @@
++;---------------------------------------------------------------------------
++;  test-domain.clp - Test Domain
++;
++;  Created: Wed 04 Oct 2017 18:14:57 CEST
++;  Copyright  2017  Till Hofmann <hofmann@kbsg.rwth-aachen.de>
++;  Licensed under GPLv2+ license, cf. LICENSE file of cedar
++;---------------------------------------------------------------------------
++
++(defrule load-domain
++  (executive-init)
++  (not (domain-loaded))
++=>
++  (assert
++    (domain-loaded)
++    (domain-object-type (name location))
++    (domain-operator (name goto))
++    (domain-precondition (part-of goto) (type conjunction))
++    (domain-effect (part-of goto) (predicate visited) (param-names to))
++  )
++)
+diff --git a/src/clips-specs/drive-around/execution-monitoring.clp b/src/clips-specs/drive-around/execution-monitoring.clp
+new file mode 100644
+index 00000000..dcee8d5f
+--- /dev/null
++++ b/src/clips-specs/drive-around/execution-monitoring.clp
+@@ -0,0 +1,4 @@
++
++;(defrule execution-monitoring-skill-fail
++	;
++;)
+diff --git a/src/clips-specs/drive-around/fixed-sequence.clp b/src/clips-specs/drive-around/fixed-sequence.clp
+new file mode 100644
+index 00000000..80eb7447
+--- /dev/null
++++ b/src/clips-specs/drive-around/fixed-sequence.clp
+@@ -0,0 +1,24 @@
++
++(defrule goal-expander-create-sequence
++	?g <- (goal (mode SELECTED) (id VISITALL))
++	=>
++	(assert
++	 (plan (id VISITALL-PLAN) (goal-id VISITALL))
++	 (plan-action (id 1) (plan-id VISITALL-PLAN) (duration 4.0)
++								(action-name goto)
++								(param-names to) (param-values "center-field"))
++	 (plan-action (id 2) (plan-id VISITALL-PLAN) (duration 4.0)
++								(action-name goto)
++								(param-names to) (param-values "source-red-output"))
++	 (plan-action (id 3) (plan-id VISITALL-PLAN) (duration 4.0)
++								(action-name goto)
++								(param-names to) (param-values "source-black-output"))
++	 (plan-action (id 4) (plan-id VISITALL-PLAN) (duration 4.0)
++								(action-name goto)
++								(param-names to) (param-values "target-magenta-input"))
++	 (plan-action (id 5) (plan-id VISITALL-PLAN) (duration 4.0)
++								(action-name goto)
++								(param-names to) (param-values "target-cyan-input"))
++	 )
++	(modify ?g (mode EXPANDED))
++)
+diff --git a/src/clips-specs/drive-around/goal-reasoner.clp b/src/clips-specs/drive-around/goal-reasoner.clp
+new file mode 100644
+index 00000000..2f0f141e
+--- /dev/null
++++ b/src/clips-specs/drive-around/goal-reasoner.clp
+@@ -0,0 +1,90 @@
++
++(deftemplate goal-meta
++	(slot goal-id (type SYMBOL))
++	(slot num-tries (type INTEGER))
++)
++
++(defglobal
++	?*GOAL-MAX-TRIES* = 3
++)
++
++; #  Goal Creation
++(defrule goal-reasoner-create
++	(not (goal))
++	(not (goal-already-tried))
++	=>
++	(assert (goal (id VISITALL)))
++	; This is just to make sure we formulate the goal only once.
++	; In an actual domain this would be more sophisticated.
++	(assert (goal-already-tried))
++)
++
++
++; #  Goal Selection
++; We can choose one or more goals for expansion, e.g., calling
++; a planner to determine the required steps.
++(defrule goal-reasoner-select
++	?g <- (goal (id ?goal-id) (mode FORMULATED))
++	=>
++	(modify ?g (mode SELECTED))
++	(assert (goal-meta (goal-id ?goal-id)))
++)
++
++; #  Commit to goal (we "intend" it)
++; A goal might actually be expanded into multiple plans, e.g., by
++; different planners. This step would allow to commit one out of these
++; plans.
++(defrule goal-reasoner-commit
++	?g <- (goal (mode EXPANDED))
++	=>
++	(modify ?g (mode COMMITTED))
++)
++
++; #  Dispatch goal (action selection and execution now kick in)
++; Trigger execution of a plan. We may commit to multiple plans
++; (for different goals), e.g., one per robot, or for multiple
++; orders. It is then up to action selection and execution to determine
++; what to do when.
++(defrule goal-reasoner-dispatch
++	?g <- (goal (mode COMMITTED))
++	=>
++	(modify ?g (mode DISPATCHED))
++)
++
++; #  Goal Monitoring
++(defrule goal-reasonder-completed
++	?g <- (goal (id ?goal-id) (mode COMPLETED))
++	?gm <- (goal-meta (goal-id ?goal-id))
++	=>
++	(printout t "Goal '" ?goal-id "' has been completed, cleaning up" crlf)
++	(delayed-do-for-all-facts ((?p plan)) (eq ?p:goal-id ?goal-id)
++		(delayed-do-for-all-facts ((?a plan-action)) (eq ?a:plan-id ?p:id)
++			(retract ?a)
++		)
++		(retract ?p)
++	)
++	(retract ?g ?gm)
++)
++
++(defrule goal-reasoner-failed
++	?g <- (goal (id ?goal-id) (mode FAILED))
++	?gm <- (goal-meta (goal-id ?goal-id) (num-tries ?num-tries))
++	=>
++	(printout error "Goal '" ?goal-id "' has failed, cleaning up" crlf)
++	(delayed-do-for-all-facts ((?p plan)) (eq ?p:goal-id ?goal-id)
++		(delayed-do-for-all-facts ((?a plan-action)) (eq ?a:plan-id ?p:id)
++			(retract ?a)
++		)
++		(retract ?p)
++	)
++	(bind ?num-tries (+ ?num-tries 1))
++	(if (< ?num-tries ?*GOAL-MAX-TRIES*)
++	then
++		(printout t "Triggering re-expansion" crlf)
++		(modify ?g (mode SELECTED))
++		(modify ?gm (num-tries ?num-tries))
++	else
++		(printout t "Goal failed " ?num-tries " times, aborting" crlf)
++		(retract ?g ?gm)
++	)
++)
+diff --git a/src/clips-specs/drive-around/state-estimation-init.clp b/src/clips-specs/drive-around/state-estimation-init.clp
+new file mode 100644
+index 00000000..bef29c94
+--- /dev/null
++++ b/src/clips-specs/drive-around/state-estimation-init.clp
+@@ -0,0 +1,42 @@
++;---------------------------------------------------------------------------
++;  state-estimation-init.clp - Initialize interfaces for state estimation
++;
++;  Created: Wed 15 Nov 2017 22:21:21 CET
++;  Copyright  2017  Till Hofmann <hofmann@kbsg.rwth-aachen.de>
++;  Licensed under GPLv2+ license, cf. LICENSE file in the doc directory.
++;---------------------------------------------------------------------------
++
++(deftemplate robot-pose
++  (slot node (type STRING))
++)
++
++(defrule state-estimation-open-pose-interface
++  "Open the Pose blackboard interface to get the robot pose."
++  (executive-init)
++  (ff-feature-loaded blackboard)
++  (not (blackboard-interface (type "Position3DInterface") (id "Pose")))
++  =>
++  (blackboard-open-reading "Position3DInterface" "Pose")
++)
++
++(defrule state-estimation-open-shelf-configuration-interface
++  "Open the ShelfConfiguration blackboard interface to get the goal
++   configuration."
++  (executive-init)
++  (ff-feature-loaded blackboard)
++  (not (blackboard-interface (type "ShelfConfigurationInterface") (id "shelf")))
++  =>
++  (blackboard-open-reading "ShelfConfigurationInterface" "shelf")
++)
++
++(defrule state-estimation-open-other-robot-pose-interface
++  "Open the synced blackboard interface of the other robot."
++  (executive-init)
++  (ff-feature-loaded blackboard)
++  (not
++    (blackboard-interface (type "Position3DInterface") (id "OtherRobotPose"))
++  )
++  =>
++  (blackboard-open-reading "Position3DInterface" "OtherRobotPose")
++  (path-load "drive-around/state-estimation.clp")
++)
+diff --git a/src/clips-specs/drive-around/state-estimation.clp b/src/clips-specs/drive-around/state-estimation.clp
+new file mode 100644
+index 00000000..40ce3419
+--- /dev/null
++++ b/src/clips-specs/drive-around/state-estimation.clp
+@@ -0,0 +1,23 @@
++;---------------------------------------------------------------------------
++;  state-estimation.clp - Assert facts according to blackboard data
++;
++;  Created: Fri 17 Nov 2017 13:09:03 CET
++;  Copyright  2017  Till Hofmann <hofmann@kbsg.rwth-aachen.de>
++;  Licensed under GPLv2+ license, cf. LICENSE file in the doc directory.
++;---------------------------------------------------------------------------
++
++(defrule state-estimation-get-init-robot-pose
++  (Position3DInterface (id "Pose") (translation $?pose-trans))
++  (not (robot-pose))
++  =>
++  (assert (robot-pose (node (navgraph-closest-to (subseq$ ?pose-trans 1 2)))))
++)
++
++(defrule state-estimation-get-closest-node-to-robot
++  (Position3DInterface (id "Pose") (translation $?pose-trans))
++  ?rp <- (robot-pose (node ?current-pose&:
++    (neq  ?current-pose (navgraph-closest-to (subseq$ ?pose-trans 1 2))))
++  )
++  =>
++  (modify ?rp (node (navgraph-closest-to (create$ (subseq$ ?pose-trans 1 2)))))
++)
+diff --git a/src/clips-specs/hackathon/test-domain.clp b/src/clips-specs/hackathon/domain.clp
+similarity index 53%
+rename from src/clips-specs/hackathon/test-domain.clp
+rename to src/clips-specs/hackathon/domain.clp
+index b46337f3..c0434010 100644
+--- a/src/clips-specs/hackathon/test-domain.clp
++++ b/src/clips-specs/hackathon/domain.clp
+@@ -1,5 +1,5 @@
+ ;---------------------------------------------------------------------------
+-;  test-domain.clp - Test Domain
++;  domain.clp - Hackathon Domain
+ ;
+ ;  Created: Wed 04 Oct 2017 18:14:57 CEST
+ ;  Copyright  2017  Till Hofmann <hofmann@kbsg.rwth-aachen.de>
+@@ -12,6 +12,26 @@
+ =>
+   (assert
+     (domain-loaded)
++    (domain-object-type (name location))
++    (domain-object-type (name mps))
++    (domain-predicate (name at) (param-names l) (param-types location))
++    (domain-operator (name goto))
++    ;(domain-operator-parameter (name from) (operator goto) (type location))
++    (domain-operator-parameter (name to) (operator goto) (type location))
++    (domain-precondition (part-of goto) (type conjunction))
++    (domain-effect (part-of goto) (predicate visited) (param-names to))
++
++    (domain-operator (name mps-align))
++    (domain-precondition (part-of mps-align) (type conjunction))
++
++    (domain-operator (name conveyor-align))
++    (domain-precondition (part-of conveyor-align) (type conjunction))
++
++    (domain-operator (name pick))
++    (domain-precondition (part-of pick) (type conjunction))
++
++    (domain-operator (name put))
++    (domain-precondition (part-of put) (type conjunction))
+     (domain-object-type (name text))
+     (domain-operator (name say-hello))
+     (domain-precondition (part-of say-hello) (type conjunction))
+diff --git a/src/clips-specs/hackathon/state-estimation-init.clp b/src/clips-specs/hackathon/state-estimation-init.clp
+index 893ec521..a4af6cf4 100644
+--- a/src/clips-specs/hackathon/state-estimation-init.clp
++++ b/src/clips-specs/hackathon/state-estimation-init.clp
+@@ -24,3 +24,14 @@
+   =>
+   (blackboard-open-reading "ShelfConfigurationInterface" "shelf")
+ )
++
++(defrule state-estimation-open-other-robot-pose-interface
++  "Open the synced blackboard interface of the other robot."
++  (executive-init)
++  (ff-feature-loaded blackboard)
++  (not
++    (blackboard-interface (type "Position3DInterface") (id "OtherRobotPose"))
++  )
++  =>
++  (blackboard-open-reading "Position3DInterface" "OtherRobotPose")
++)
+diff --git a/src/lua/skills/robotino/shelf_pick.lua b/src/lua/skills/robotino/shelf_pick.lua
+index e57a58a8..32209645 100644
+--- a/src/lua/skills/robotino/shelf_pick.lua
++++ b/src/lua/skills/robotino/shelf_pick.lua
+@@ -75,14 +75,14 @@ function INIT:init()
+ end
+ 
+ function GOTO_SHELF:init()
+-   local shelf_to_conveyor = 0.1 --TODO measure both values
++   local shelf_to_conveyor = 0.0 --TODO measure both values
+    local shelf_distance = 0.1
+    if self.fsm.vars.slot == "LEFT" then
+-      dest_y = shelf_to_conveyor
++      dest_y = shelf_to_conveyor - shelf_distance
+    elseif self.fsm.vars.slot == "MIDDLE" then
+-      dest_y = shelf_to_conveyor + shelf_distance
++      dest_y = shelf_to_conveyor
+    elseif self.fsm.vars.slot == "RIGHT" then
+-      dest_y = shelf_to_conveyor + 2*shelf_distance
++      dest_y = shelf_to_conveyor + shelf_distance
+    else
+       dest_y = 0
+       self.fsm:set_error("no shelf side set")
+diff --git a/src/lua/skills/robotino/shelf_put.lua b/src/lua/skills/robotino/shelf_put.lua
+index c0a58dd9..14c3d286 100644
+--- a/src/lua/skills/robotino/shelf_put.lua
++++ b/src/lua/skills/robotino/shelf_put.lua
+@@ -63,14 +63,14 @@ fsm:add_transitions{
+ 
+ 
+ function GOTO_SHELF:init()
+-   local shelf_to_conveyor = 0.09 --TODO measure both values
+-   local shelf_distance = 0.09
++   local shelf_to_conveyor = 0.0  --TODO measure both values
++   local shelf_distance = 0.1
+    if self.fsm.vars.slot == "LEFT" then
+-      dest_y = shelf_to_conveyor
++      dest_y = shelf_to_conveyor - shelf_distance
+    elseif self.fsm.vars.slot == "MIDDLE" then
+-      dest_y = shelf_to_conveyor + shelf_distance
++      dest_y = shelf_to_conveyor
+    elseif self.fsm.vars.slot == "RIGHT" then
+-      dest_y = shelf_to_conveyor + 2*shelf_distance
++      dest_y = shelf_to_conveyor + shelf_distance
+    else
+       dest_y = 0
+       self.fsm:set_error("no shelf side set")
