@@ -21,5 +21,10 @@
 
 # Assumes $SIMSTICK_UPDATE_PATH to be set by simstick-update (stage 0)
 
-sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+# check if latest grub cfg is older than one day. If true, regenerate and reboot
+if [[ $(sudo find "/boot/grub2/grub.cfg" -mtime +1 -print) ]]; then
+	echo "/boot/grub2/grub.cfg is older than 1 day. Regenerating ..."
+	sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+	reboot
+fi
 
