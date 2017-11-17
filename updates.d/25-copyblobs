@@ -21,6 +21,8 @@
 
 # Assumes $SIMSTICK_UPDATE_PATH to be set by simstick-update (stage 0)
 
+source functions.sh
+
 print_sechead "Copy blobs"
 
 cp $SIMSTICK_UPDATE_PATH/blobs/hackathon-sim* $FAWKES_DIR/cfg/maps/
