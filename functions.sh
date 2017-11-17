@@ -373,7 +373,7 @@ copy_blob_if_needed()
 		fi
 }
 
-copy_blob_if_needed()
+copy_folder_blob_if_needed()
 {
 	cp -R $1 $2
 }
