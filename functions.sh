@@ -372,3 +372,8 @@ copy_blob_if_needed()
 				cp $1 $2
 		fi
 }
+
+copy_blob_if_needed()
+{
+	cp -R $1 $2
+}
