@@ -29,6 +29,8 @@ copy_blob_if_needed $SIMSTICK_UPDATE_PATH/blobs/hackathon-sim.png $FAWKES_DIR/cf
 copy_blob_if_needed $SIMSTICK_UPDATE_PATH/blobs/navgraph-hackathon.yaml $FAWKES_DIR/cfg/navgraph-hackathon.yaml
 copy_blob_if_needed $SIMSTICK_UPDATE_PATH/blobs/clips-executive.yaml $FAWKES_DIR/cfg/conf.d/clips-executive.yaml
 
-copy_folder_blob_if_needed $SIMSTICK_UPDATE_PATH/files.d/fawkes-robotino $FAWKES_DIR
+rm -rf $FAWKES_DIR/fawkes-robotino
+
+copy_folder_blob_if_needed $SIMSTICK_UPDATE_PATH/files.d/fawkes-robotino $FAWKES_DIR/..
 copy_folder_blob_if_needed $SIMSTICK_UPDATE_PATH/blobs/drive-around $FAWKES_DIR/src/clips-specs
 
