@@ -25,5 +25,5 @@ source functions.sh
 
 print_sechead "Copy blobs"
 
-cp $SIMSTICK_UPDATE_PATH/blobs/hackathon-sim* $FAWKES_DIR/cfg/maps/
+copy_blob_if_needed $SIMSTICK_UPDATE_PATH/blobs/hackathon-sim.png $FAWKES_DIR/cfg/maps/hackathon-sim.png
 
