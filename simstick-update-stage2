@@ -35,6 +35,8 @@ if [ ! -d updates.d ]; then
 		echo "FAIL|rcll-simstick-update: updates directory not found"
 fi
 
+git checkout *
+
 for f in updates.d/*; do
 		if [[ "$f" != *"~" ]]; then
 				$f || exit $?
