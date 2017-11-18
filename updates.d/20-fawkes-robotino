@@ -24,9 +24,6 @@
 source functions.sh
 print_sechead "Updating Fawkes"
 
-# simply rebuild libs/tf
-make -C $FAWKES_DIR/fawkes/src/libs/tf/
-
 SCRIPT_NAME=$(basename $0)
 
 if [ -z "$FAWKES_DIR" ];  then
