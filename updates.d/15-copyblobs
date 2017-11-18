@@ -28,7 +28,7 @@ print_sechead "Copy blobs"
 copy_blob_if_needed $SIMSTICK_UPDATE_PATH/blobs/hackathon-sim.png $FAWKES_DIR/cfg/maps/hackathon-sim.png
 copy_blob_if_needed $SIMSTICK_UPDATE_PATH/blobs/navgraph-hackathon.yaml $FAWKES_DIR/cfg/navgraph-hackathon.yaml
 copy_blob_if_needed $SIMSTICK_UPDATE_PATH/blobs/clips-executive.yaml $FAWKES_DIR/cfg/conf.d/clips-executive.yaml
-copy_blob_if_needed $SIMSTICK_UPDATE_PATH/files.d/Hackathon_2017.pdf ~/Documents/
+cp $SIMSTICK_UPDATE_PATH/files.d/Hackathon_2017.pdf ~/Documents/
 
 rm -rf $FAWKES_DIR/fawkes-robotino
 
