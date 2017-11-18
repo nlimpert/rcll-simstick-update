@@ -26,7 +26,6 @@ print_sechead "Updating Fawkes"
 
 # simply rebuild libs/tf
 make -C $FAWKES_DIR/fawkes/src/libs/tf/
-make -C $FAWKES_DIR/fawkes/src/plugins/clips-executive/
 
 SCRIPT_NAME=$(basename $0)
 
